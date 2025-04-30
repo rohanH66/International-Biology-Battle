@@ -83,7 +83,7 @@ def sort_dict(average_list, max_list):
         reverse=True
     ))
     
-df = pd.read_csv('ibb_responses.csv')
+df = pd.read_csv(r"C:\Users\rohan\OneDrive\Documents\GitHub\IBB-Files\ibb_responses.csv")
 teamNames = df['Select your team name (sorted alphabetically)']
 indivdualNames = df["Full name (First and Last, as provided during registration)"]
 scores, team_averages, team_count, score_dict = list(), dict(), dict(), dict()
@@ -103,7 +103,7 @@ for i in range(len(scores)):  # calculate total score from the pretest (total, n
         team_max_individual[currTeam] = max(team_max_individual[currTeam], currScore)  # <-- update max
     score_dict[currName] = currScore
 
-df1 = pd.read_csv('ibb_did_not_take_test.csv')
+df1 = pd.read_csv(r"C:\Users\rohan\OneDrive\Documents\GitHub\IBB-Files\ibb_did_not_take_test.csv")
 teamNamesDNT = df1["Team Name"]
 scoresDNT = df1["Score"]
 
@@ -154,7 +154,7 @@ displayIndividualRankings(sorted_score_dict)
 
 # PDF CODE
 
-def export_to_pdf(team_rankings, individual_rankings, filename="ibb_rankings.pdf"):
+def export_to_pdf(team_rankings, individual_rankings, filename=r"C:\Users\rohan\OneDrive\Documents\GitHub\IBB-Files\ibb_rankings.pdf"):
     c = canvas.Canvas(filename, pagesize=letter)
     width, height = letter
     x_margin_left = 40
