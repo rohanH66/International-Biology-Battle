@@ -11,21 +11,64 @@ def displayTeamRankings(average_list):
             if index >= 32 and index <= 36:
                 print(index + 1, team, average_list[team])
         index += 1
+        
+import numpy as np # type: ignore
 
 def displayIndividualRankings(average_list):
-    index = 0
-    for student in average_list:
-        if index <= 9:
-            print(index + 1, student, average_list[student])
-        elif index <= 29:
-            if index == 10:
-                print("\nRANKINGS 11-30")
-            print(index + 1, student, average_list[student])
-        elif index <= 40:
-            if index == 30:
-                print("\nRANKINGS 31-40")
-            print(index + 1, student, average_list[student])
-        index += 1
+    all_entries = list(average_list.items())
+    total_people = len(all_entries)
+
+    previous_score = None
+    rank_to_display = 0
+    true_rank = 0
+    count_displayed = 0
+    top_40_names = set()
+
+    print("RANKINGS 1–10")
+    for i, (student, score) in enumerate(all_entries):
+        true_rank += 1
+        if score != previous_score:
+            rank_to_display = true_rank
+        if rank_to_display == 11:
+            print("\nRANKINGS 11–30")
+        elif rank_to_display == 31:
+            print("\nRANKINGS 31–40")
+        if rank_to_display > 40:
+            break
+        print(rank_to_display, student, score)
+        top_40_names.add(student)
+        previous_score = score
+        count_displayed += 1
+
+    # Get 75th percentile score (i.e. top 25% by score)
+    scores_only = [score for _, score in all_entries]
+    percentile_75_score = np.percentile(scores_only, 75)
+
+    # Honorable mentions = not in top 40 but >= 75th percentile score
+    honorable_mentions = [
+        (student, score)
+        for student, score in all_entries
+        if student not in top_40_names and score >= percentile_75_score
+    ]
+
+    print(f"\nHONORABLE MENTIONS (Top 25% by score not in top 40) — Score Cutoff: {percentile_75_score:.2f}")
+    if not honorable_mentions:
+        print("None")
+        return
+
+    previous_score = None
+    rank_to_display = 0
+    true_rank = 0
+
+    for student, score in honorable_mentions:
+        true_rank += 1
+        if score != previous_score:
+            rank_to_display = true_rank
+        print(rank_to_display, student, score)
+        previous_score = score
+
+
+
 
 def sort_dict(average_list, max_list):
     return dict(sorted(
@@ -58,15 +101,15 @@ df1 = pd.read_csv('ibb_did_not_take_test.csv')
 teamNamesDNT = df1["Team Name"]
 scoresDNT = df1["Score"]
 
-for i in range(len(teamNamesDNT)):  # add 0s for people who did not take the test
+for i in range(len(teamNamesDNT)):
     currTeam, currScore = teamNamesDNT[i], int(scoresDNT[i])
     if currTeam not in team_averages:
         team_averages[currTeam], team_count[currTeam] = currScore, 1
-        team_max_individual[currTeam] = currScore  # <-- track 0 or whatever they have
+        team_max_individual[currTeam] = currScore
     else:
         team_count[currTeam] += 1
         team_averages[currTeam] += currScore
-        team_max_individual[currTeam] = max(team_max_individual[currTeam], currScore)  # <-- update max
+        team_max_individual[currTeam] = max(team_max_individual[currTeam], currScore)  
 
 for team in team_averages:  # calculate average
     team_averages[team] /= team_count[team]
