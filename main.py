@@ -1,4 +1,7 @@
 import pandas as pd # type: ignore
+import numpy as np # type: ignore
+from reportlab.lib.pagesizes import letter # type: ignore
+from reportlab.pdfgen import canvas # type: ignore
 
 def displayTeamRankings(average_list):
     index = 0
@@ -12,8 +15,6 @@ def displayTeamRankings(average_list):
                 print(index + 1, team, average_list[team])
         index += 1
         
-import numpy as np # type: ignore
-
 def displayIndividualRankings(average_list):
     all_entries = list(average_list.items())
     total_people = len(all_entries)
@@ -29,29 +30,35 @@ def displayIndividualRankings(average_list):
         true_rank += 1
         if score != previous_score:
             rank_to_display = true_rank
-        if rank_to_display == 11:
+
+        if rank_to_display == 11 and count_displayed == 10:
             print("\nRANKINGS 11–30")
-        elif rank_to_display == 31:
+        elif rank_to_display == 31 and count_displayed == 30:
             print("\nRANKINGS 31–40")
+
         if rank_to_display > 40:
             break
+
         print(rank_to_display, student, score)
         top_40_names.add(student)
         previous_score = score
         count_displayed += 1
 
-    # Get 75th percentile score (i.e. top 25% by score)
+    # Get 75th percentile score (top 25% performers)
     scores_only = [score for _, score in all_entries]
     percentile_75_score = np.percentile(scores_only, 75)
 
-    # Honorable mentions = not in top 40 but >= 75th percentile score
+    # Honorable mentions: not in top 40 and above 75th percentile cutoff
     honorable_mentions = [
         (student, score)
         for student, score in all_entries
         if student not in top_40_names and score >= percentile_75_score
     ]
 
-    print(f"\nHONORABLE MENTIONS (Top 25% by score not in top 40) — Score Cutoff: {percentile_75_score:.2f}")
+    # Sort honorable mentions alphabetically
+    honorable_mentions.sort(key=lambda x: x[0])
+
+    print(f"\nHONORABLE MENTIONS, ALPHABETICAL ORDER (Top 25% by score not in top 40) — Score Cutoff: {percentile_75_score:.2f}")
     if not honorable_mentions:
         print("None")
         return
@@ -66,7 +73,6 @@ def displayIndividualRankings(average_list):
             rank_to_display = true_rank
         print(rank_to_display, student, score)
         previous_score = score
-
 
 
 
@@ -144,4 +150,115 @@ displayTeamRankings(sorted_team_averages)
 print("\nFINAL INDIVIDUAL RANKINGS: \n---------------------")
 
 sorted_score_dict = dict(sorted(score_dict.items(), key=lambda x: (x[1], [x[0]]), reverse=True))
-displayIndividualRankings(sorted_score_dict)    
+displayIndividualRankings(sorted_score_dict)   
+
+# PDF CODE
+
+def export_to_pdf(team_rankings, individual_rankings, filename="ibb_rankings.pdf"):
+    c = canvas.Canvas(filename, pagesize=letter)
+    width, height = letter
+    x_margin_left = 40
+    x_margin_right = width / 2 + 20
+    y = height - 50
+    col = 0  # 0 = left, 1 = right
+
+    def write_line(text, font="Helvetica", size=10, spacing=14):
+        nonlocal y, col
+        if y < 50:
+            if col == 0:
+                col = 1
+                y = height - 50
+            else:
+                c.showPage()
+                col = 0
+                y = height - 50
+        x = x_margin_left if col == 0 else x_margin_right
+        c.setFont(font, size)
+        c.drawString(x, y, text)
+        y -= spacing
+
+    # TEAM RANKINGS
+    write_line("FINAL TEAM RANKINGS", font="Helvetica-Bold", size=14)
+    write_line("---------------------")
+    for i, (team, avg) in enumerate(team_rankings.items(), 1):
+        write_line(f"{i}. {team} — {avg:.2f}")
+
+    # NEW PAGE: INDIVIDUAL RANKINGS
+    c.showPage()
+    col = 0
+    y = height - 50
+    write_line("FINAL INDIVIDUAL RANKINGS", font="Helvetica-Bold", size=14, spacing=16)
+    write_line("---------------------")
+
+    # Section titles map and printed flags
+    section_titles = {
+        1: "RANKINGS 1–10",
+        11: "RANKINGS 11–30",
+        31: "RANKINGS 31–41"
+    }
+    printed_sections = set()
+
+    all_entries = list(individual_rankings.items())
+    top_40_names = set()
+    previous_score = None
+    rank_to_display = 0
+    true_rank = 0
+
+    for student, score in all_entries:
+        true_rank += 1
+        if score != previous_score:
+            rank_to_display = true_rank
+
+        # Print section title only once
+        for start in section_titles:
+            if start <= rank_to_display <= start + 9 and start not in printed_sections:
+                write_line(section_titles[start], font="Helvetica-Bold", size=12, spacing=16)
+                printed_sections.add(start)
+                break
+
+        if rank_to_display > 41:
+            break
+
+        write_line(f"{rank_to_display}. {student} — {score}")
+        top_40_names.add(student)
+        previous_score = score
+
+    # HONORABLE MENTIONS
+    scores_only = [score for _, score in all_entries]
+    percentile_75_score = np.percentile(scores_only, 75)
+
+    honorable_mentions = [
+        (student, score)
+        for student, score in all_entries
+        if student not in top_40_names and score >= percentile_75_score
+    ]
+    honorable_mentions.sort(key=lambda x: x[0])  # Alphabetical
+
+    # Force column break before honorable mentions
+    if col == 0:
+        col = 1
+        y = height - 50
+    else:
+        c.showPage()
+        col = 0
+        y = height - 50
+
+    write_line("HONORABLE MENTIONS, ALPHABETICAL ORDER (Top 25% by score not in top 40)", font="Helvetica-Bold", size=12)
+    write_line(f"Cutoff Score: {percentile_75_score:.2f}", font="Helvetica", size=10, spacing=16)
+
+    previous_score = None
+    rank_to_display = 0
+    true_rank = 0
+
+    for student, score in honorable_mentions:
+        true_rank += 1
+        if score != previous_score:
+            rank_to_display = true_rank
+        write_line(f"{rank_to_display}. {student} — {score}")
+        previous_score = score
+
+    c.save()
+    print(f"\nExported rankings to {filename}")
+
+# Call the export function here:
+export_to_pdf(sorted_team_averages, sorted_score_dict)
